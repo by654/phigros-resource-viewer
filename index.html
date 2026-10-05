@@ -627,9 +627,7 @@ body.batch-mode .dl-options{display:block}
   display:flex; align-items:center; justify-content:center; font-size:calc(22px * var(--fs));
   background:color-mix(in srgb,var(--accent) 15%,transparent); color:var(--accent);
 }
-.item-card.tip-card .meta{
-  max-height:none;
-}
+.item-card.tip-card .meta{ max-height:none; }
 .item-card.tip-card .name{
   -webkit-line-clamp:unset; display:block; overflow:visible;
   font-weight:500; font-size:calc(14px * var(--fs));
@@ -1389,6 +1387,11 @@ body.playing .toast{bottom:calc(var(--mini-h) + 24px + var(--safe-bottom))}
           <div class="set-label">显示统计信息</div>
           <div class="set-ctrl"><input type="checkbox" id="setShowStats"></div>
         </div>
+        <!-- 【新增】关闭所有高亮 -->
+        <div class="set-row">
+          <div class="set-label">关闭所有高亮<small>搜索时不高亮关键词</small></div>
+          <div class="set-ctrl"><input type="checkbox" id="setNoHighlight"></div>
+        </div>
         <div class="set-block">
           <button class="dl-btn" id="resetDisplay" style="width:100%;min-height:42px">恢复默认显示设置</button>
         </div>
@@ -1638,6 +1641,7 @@ const SET_DEFAULTS = {
   tipsInterval: 8,
   showSuggest: true,
   showStats: true,
+  noHighlight: false,
   threadMode: 'auto',
   threadsNoToken: 4,
   threadsToken: 8,
@@ -2134,7 +2138,7 @@ let collections = [];
 let tips = [];
 let suggestionPool = [];
 let filteredIdx = [];
-let unifiedItems = [];   // 统一渲染条目（歌曲 + 其他资源）
+let unifiedItems = [];
 let rendered = 0;
 let currentPage = 1;
 
@@ -2159,7 +2163,6 @@ let packing = false;
 let batchTaskRunning = false;
 let fetchTaskRunning = false;
 
-/* 【修改】批量默认勾选全部内容（包括模糊曲绘） */
 const BATCH_OPT_KEYS = ['coverHi','coverLow','coverBlur','audio','json','pez'];
 let batchGlobalOpts = new Set(['coverHi','coverLow','coverBlur','audio','json','pez']);
 
@@ -2584,7 +2587,6 @@ function isDifficultyTerm(term){
   return /^(ez|hd|in|at)$/i.test(term) || /^\d+(\.\d+)?$/.test(term);
 }
 
-/* 歌曲搜索：严格子串匹配 */
 function scoreSong(s, terms){
   let total = 0;
   let exact = false;
@@ -2624,10 +2626,27 @@ function scoreSong(s, terms){
   return { score: total, exact };
 }
 
+/**
+ * 关键词高亮
+ * - SET.noHighlight 为 true 时全局不高亮
+ * - 若当前查询词（完整输入）与字段文本完全一致（忽略大小写与首尾空格），则该字段不高亮
+ */
 function highlight(text, terms){
   const safe = esc(text);
   if (!terms || !terms.length) return safe;
-  const parts = terms.filter(Boolean).map(t => esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((a,b) => b.length - a.length);
+  if (SET.noHighlight) return safe;
+
+  // 完全匹配时不高亮（用户直接搜索完整内容）
+  const q = String(currentQuery || '').trim();
+  if (q){
+    const t = String(text == null ? '' : text).toLowerCase();
+    if (t === q.toLowerCase()) return safe;
+  }
+
+  const parts = terms
+    .filter(Boolean)
+    .map(t => esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .sort((a,b) => b.length - a.length);
   if (!parts.length) return safe;
   const re = new RegExp('(' + parts.join('|') + ')', 'gi');
   return safe.replace(re, '<mark>$1</mark>');
@@ -2645,21 +2664,17 @@ function maxLevel(s){
 /* =========================================================================
    筛选 / 统一渲染
    ========================================================================= */
-
-/* 构建统一待渲染条目列表 */
 function buildUnifiedItems(){
   const terms = currentTerms;
   const hasQuery = terms.length > 0;
   const items = [];
 
-  // 1. 歌曲
   if (activeContent.has('song')){
     for (const idx of filteredIdx){
       items.push({ type: 'song', idx });
     }
   }
 
-  // 严格 / 模糊
   const strictOk = txt => {
     if (!hasQuery) return true;
     const t = String(txt).toLowerCase();
@@ -2673,7 +2688,6 @@ function buildUnifiedItems(){
     return terms.every(x => t.includes(x) || fuzzyIncludes(t, x));
   };
 
-  // 2. 资源文件（严格匹配，属于歌曲相关的附属资源）
   const activeAssetKinds = ASSET_KINDS.filter(k => activeContent.has(k));
   const limitNum = SET.maxFilteredFiles > 0 ? SET.maxFilteredFiles : Infinity;
 
@@ -2688,7 +2702,6 @@ function buildUnifiedItems(){
     }
   }
 
-  // 3. 其他文件（模糊匹配）
   if (activeContent.has('file')){
     const matched = EXTRA_FILES.filter(f => fuzzyOk(f.path) || fuzzyOk(f.desc));
     const limited = Number.isFinite(limitNum) ? matched.slice(0, limitNum) : matched;
@@ -2697,7 +2710,6 @@ function buildUnifiedItems(){
     }
   }
 
-  // 4. 收藏品（严格匹配）
   if (activeContent.has('collection')){
     const matched = collections.filter(c => strictOk(c.title) || (c.sub && strictOk(c.sub)));
     const limited = Number.isFinite(limitNum) ? matched.slice(0, limitNum) : matched;
@@ -2706,7 +2718,6 @@ function buildUnifiedItems(){
     }
   }
 
-  // 5. 头像（模糊匹配）
   if (activeContent.has('avatar')){
     const matched = avatars.filter(a => fuzzyOk(a.name));
     const limited = Number.isFinite(limitNum) ? matched.slice(0, limitNum) : matched;
@@ -2715,7 +2726,6 @@ function buildUnifiedItems(){
     }
   }
 
-  // 6. Tips（模糊匹配）
   if (activeContent.has('tip')){
     const matched = tips.filter(t => fuzzyOk(t));
     const limited = Number.isFinite(limitNum) ? matched.slice(0, limitNum) : matched;
@@ -2759,7 +2769,6 @@ function applySearch(q){
 
   filteredIdx = arr.map(o => o.i);
 
-  // 构建统一渲染条目
   unifiedItems = buildUnifiedItems();
 
   rendered = 0;
@@ -2783,7 +2792,6 @@ function applySearch(q){
 
 function updateStats(q){
   const parts = [];
-  // 新增：歌曲统计
   if (activeContent.has('song')){
     parts.push(`<span class="stat-btn" data-only="song"><b>${songs.length}</b> 首歌曲</span>`);
   }
@@ -2958,7 +2966,6 @@ function cardHTML(s, idx){
   </div>`;
 }
 
-/* 其他类型的条目卡片 */
 function assetItemHTML(e){
   const isSel = batchSelection.has('fentry:' + e.id);
   const thumbRel = songThumbPath(e.songId, e.level);
@@ -3157,7 +3164,6 @@ pager.addEventListener('click', e => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-/* 滚动：rAF 节流 */
 const toTop = $('toTop');
 let scrollTick = false;
 let lastScrollY = 0;
@@ -3196,7 +3202,6 @@ async function getFileBlobWithCache(cat, relPath, signal){
   return blob;
 }
 
-/* 将 Blob 加入 zip：仅 json / pez 使用 DEFLATE，其他用 STORE 加速 */
 function zipAddFile(folder, name, blob, compress){
   if (compress){
     folder.file(name, blob, { compression: 'DEFLATE', compressionOptions: { level: 6 } });
@@ -3205,6 +3210,9 @@ function zipAddFile(folder, name, blob, compress){
   }
 }
 
+/**
+ * 【修改】PEZ 打包使用高清曲绘（illustration 目录）
+ */
 async function buildPezBlob(s, lvIdx, level, signal){
   if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
   const zip = new JSZip();
@@ -3220,13 +3228,11 @@ async function buildPezBlob(s, lvIdx, level, signal){
   const chartBlob = await getFileBlobWithCache('chart', chartRel, signal);
   if (chartBlob) zipAddFile(zip, `${s.id}.json`, chartBlob, true);
 
-  let picPath = (s.id === MULTI_COVER_ID)
-    ? coverPath(s.id, 'illustLow', level)
-    : FOLDERS.illustLow + enc(s.id) + '.png';
-  let pic = await getFileBlobWithCache('img', picPath, signal);
-  if (!pic && s.id !== MULTI_COVER_ID){
-    pic = await getFileBlobWithCache('img', FOLDERS.illust + enc(s.id) + '.png', signal);
-  }
+  // 使用高清曲绘
+  const picPath = (s.id === MULTI_COVER_ID)
+    ? coverPath(s.id, 'illust', level)
+    : FOLDERS.illust + enc(s.id) + '.png';
+  const pic = await getFileBlobWithCache('img', picPath, signal);
   if (pic) zipAddFile(zip, `${s.id}.png`, pic, false);
 
   const musRel = FOLDERS.music + enc(s.id) + '.ogg';
@@ -3372,7 +3378,6 @@ grid.addEventListener('click', async (e) => {
     const card = e.target.closest('.card');
     const idx = card ? +card.dataset.idx : -1;
 
-    // 歌曲卡片按钮
     if (act === 'fav' && card){ e.stopPropagation(); toggleFav(songs[idx].id); return; }
     if (act === 'play'){ loadAndPlay(idx); return; }
     if (act === 'pez'){ downloadPez(idx, +btn.dataset.lv, btn); return; }
@@ -3447,7 +3452,6 @@ grid.addEventListener('click', async (e) => {
       return;
     }
 
-    // 歌曲卡片内部专用按钮
     if (!card) return;
     const s = songs[idx];
     if (!s) return;
@@ -4277,9 +4281,7 @@ $('batchCancelBtn').addEventListener('click', exitBatchMode);
 $('batchConfirm').addEventListener('click', confirmBatchDownload);
 
 $('batchSelectAll').addEventListener('click', () => {
-  // 全选当前展示的歌曲
   filteredIdx.forEach(idx => { const s = songs[idx]; if (s) ensureSongSelection(s); });
-  // 全选其他资源（根据当前 content 激活情况）
   if (activeContent.has('file')){
     EXTRA_FILES.forEach(f => {
       batchSelection.set('xfile:' + f.path, { type: 'xfile', path: f.path, file: f });
@@ -4417,7 +4419,6 @@ FPC.pause.addEventListener('click', () => {
   updateFetchAllBtn();
 });
 
-/* 打包：单曲内部并发 */
 const PER_SONG_CONCURRENCY = 3;
 
 async function addSongToZip(rootFolder, item, shouldStop, isPaused, signal){
@@ -4491,7 +4492,7 @@ async function addSongToZip(rootFolder, item, shouldStop, isPaused, signal){
       jobs.push(async () => {
         if (aborted()) return;
         const blob = await getFileBlobWithCache('chart', `${FOLDERS.chart}${enc(s.id)}.0/${lv}.json`, signal);
-        if (blob) zipAddFile(songFolder.folder('json'), `${s.id}-${lv}.json`, blob, true); // json 压缩
+        if (blob) zipAddFile(songFolder.folder('json'), `${s.id}-${lv}.json`, blob, true);
       });
     }
     if (opts.has('pez-' + lv)){
@@ -4499,7 +4500,7 @@ async function addSongToZip(rootFolder, item, shouldStop, isPaused, signal){
       jobs.push(async () => {
         if (aborted()) return;
         const blob = await buildPezBlob(s, lvIdx, lv, signal);
-        zipAddFile(songFolder.folder('pez'), `${s.id}-${lv}.pez`, blob, true); // pez 压缩
+        zipAddFile(songFolder.folder('pez'), `${s.id}-${lv}.pez`, blob, true);
       });
     }
   }
@@ -4624,7 +4625,6 @@ async function confirmBatchDownload(){
     if (!stillActive()) throw new Error('CANCELLED');
 
     setBatchZipProgress(1);
-    // 所有文件都已经通过 zipAddFile 指定了压缩方式，这里 generateAsync 使用 STORE 作为默认
     const blob = await zip.generateAsync(
       { type: 'blob', compression: 'STORE', streamFiles: true },
       meta => {
@@ -4638,7 +4638,6 @@ async function confirmBatchDownload(){
 
     setBatchZipProgress(100);
 
-    /* 【修改】即使打包完成，如果处于暂停状态则等待用户点击继续后才触发下载 */
     if (batchState.paused){
       BPC.status.textContent = '打包完成 · 等待点击“继续”后保存';
       while (batchState.paused && !batchState.cancelled){
@@ -4837,6 +4836,7 @@ function syncSettingsUI(){
   $('setTipsInterval').value = SET.tipsInterval;
   $('setShowSuggest').checked = SET.showSuggest;
   $('setShowStats').checked = SET.showStats;
+  $('setNoHighlight').checked = !!SET.noHighlight;
 
   $('setThreadMode').value = SET.threadMode;
   $('setThreadsNoToken').value = SET.threadsNoToken;
@@ -4891,13 +4891,22 @@ $('setTipsInterval').addEventListener('change', e => { SET.tipsInterval = Math.m
 $('setShowSuggest').addEventListener('change', e => { SET.showSuggest = e.target.checked; saveSettings(); if (!SET.showSuggest) suggestBox.classList.remove('show'); });
 $('setShowStats').addEventListener('change', e => { SET.showStats = e.target.checked; saveSettings(); statsEl.style.display = SET.showStats ? '' : 'none'; });
 
+/* 【新增】关闭所有高亮 */
+$('setNoHighlight').addEventListener('change', e => {
+  SET.noHighlight = e.target.checked;
+  saveSettings();
+  applySearch(currentQuery);
+});
+
 $('resetDisplay').addEventListener('click', () => {
   SET.fontScale = SET_DEFAULTS.fontScale; SET.zoom = SET_DEFAULTS.zoom; SET.lineHeight = SET_DEFAULTS.lineHeight;
   SET.maxCols = SET_DEFAULTS.maxCols; SET.showViz = SET_DEFAULTS.showViz; SET.showTips = SET_DEFAULTS.showTips;
   SET.tipsInterval = SET_DEFAULTS.tipsInterval; SET.showSuggest = SET_DEFAULTS.showSuggest; SET.showStats = SET_DEFAULTS.showStats;
+  SET.noHighlight = SET_DEFAULTS.noHighlight;
   saveSettings(); applyFontScale(); applyZoom(); applyGridCols();
   tipsCard.style.display = ''; statsEl.style.display = '';
   startTipsTimer(); syncSettingsUI();
+  applySearch(currentQuery);
   toast('显示设置已恢复默认');
 });
 
@@ -5155,7 +5164,7 @@ function readURL(){
 setInterval(() => { if (gCurrentIdx >= 0) syncURL(); }, 5000);
 
 /* =========================================================================
-   启动（异步加载：先渲染界面，稍后再加载 GitHub 索引）
+   启动
    ========================================================================= */
 (async function main(){
   let t = lsGet('phigros_theme', null);
@@ -5191,14 +5200,10 @@ setInterval(() => { if (gCurrentIdx >= 0) syncURL(); }, 5000);
 
   updateTipsAutoBtn(); updateModeBtn(); updateFetchAllBtn(); syncSettingsUI();
 
-  // 1. 先渲染 loading 界面
   grid.innerHTML = `<div class="loading" style="grid-column:1/-1">
     <div class="spinner"></div>正在从 GitHub 加载 Phigros 资源索引…</div>`;
 
-  // 2. 让浏览器绘制 loading 界面
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-  // 3. 让出主线程后再开始加载
   await new Promise(r => setTimeout(r, 30));
 
   try{
@@ -5218,7 +5223,6 @@ setInterval(() => { if (gCurrentIdx >= 0) syncURL(); }, 5000);
     return;
   }
 
-  // 4. 数据加载完后，清空并渲染
   grid.innerHTML = '';
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
