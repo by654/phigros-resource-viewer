@@ -3017,7 +3017,7 @@ function updateStats(q){
   const songLabel = onlyFav
     ? `收藏歌曲 <b>${favorites.size}</b> / ${songs.length}`
     : `<b>${songs.length}</b> 首歌曲`;
-  parts.push(`<span class="stat-btn${songVisible ? '' : ' inactive'}" data-only="song">${songLabel}${songVisible ? '' : '（未显示）'}</span>`);
+  parts.push(`<span class="stat-btn${songVisible ? '' : ' inactive'}" data-only="song">${songLabel}${songVisible ? '' : ''}</span>`);
   if (onlyFav) parts.push('仅收藏');
   if (activeDiffs.size !== LEVELS.length && activeDiffs.size > 0){
     parts.push(`难度：<b>${[...activeDiffs].join('/')}</b>`);
