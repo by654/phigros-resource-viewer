@@ -1186,7 +1186,6 @@ body.playing .toast{bottom:calc(var(--mini-h) + 24px + var(--safe-bottom))}
   .cover-lv{ font-size:calc(12.5px * var(--fs)); padding:7px 6px; min-width:44px }
 
   .diff-row{ padding:7px 9px; gap:6px }
-  .diff-row .chaser{ font-size:calc(12px * var(--fs)); flex-basis:100%; min-width:0 }
   .diff-row .charter{ font-size:calc(12px * var(--fs)); flex-basis:100%; min-width:0 }
   .diff-row .lv-num{ font-size:calc(12.5px * var(--fs)); min-width:44px }
   .dl-btn{ font-size:calc(12px * var(--fs)); padding:6px 9px; min-height:34px }
@@ -1522,7 +1521,6 @@ body.playing .toast{bottom:calc(var(--mini-h) + 24px + var(--safe-bottom))}
       <button class="stab active" data-tab="general">通用</button>
       <button class="stab" data-tab="display">显示</button>
       <button class="stab" data-tab="download">下载</button>
-      <button class="stab" data-tab="local">本地资源</button>
       <button class="stab" data-tab="cache">缓存</button>
       <button class="stab" data-tab="proxy">代理</button>
       <button class="stab" data-tab="token">令牌</button>
@@ -1684,57 +1682,6 @@ body.playing .toast{bottom:calc(var(--mini-h) + 24px + var(--safe-bottom))}
         </div>
       </div>
 
-      <!-- 本地资源 -->
-      <div class="stab-panel" data-panel="local">
-        <p class="modal-sub">
-          把网站目录下的文件夹当作一个资源分类。在清单文件里登记分类名与文件列表，即可在首页搜索、下载、收藏。
-        </p>
-        <div class="set-row">
-          <div class="set-label">清单文件路径<small>相对于本页面的路径</small></div>
-          <div class="set-ctrl"><input type="text" id="setLocalManifest" placeholder="local/index.json"></div>
-        </div>
-        <div class="set-row">
-          <div class="set-label">当前状态</div>
-          <div class="set-ctrl"><span class="set-val" id="localStatus" style="min-width:0;text-align:left">未加载</span></div>
-        </div>
-        <div class="set-block">
-          <button class="dl-btn" id="localReload" style="width:100%;min-height:42px">重新加载本地资源清单</button>
-        </div>
-        <details class="token-guide" open>
-          <summary>📁 清单文件格式说明（点击展开）</summary>
-          <div class="guide-body">
-            <p>在网站根目录下创建 <code>local/index.json</code>，内容示例：</p>
-            <pre>{
-  "folders": [
-    {
-      "name": "自制谱面",
-      "path": "local/charts",
-      "desc": "个人收藏的谱面文件",
-      "icon": "🎼",
-      "files": [
-        "song1.pez",
-        { "name": "song2.json", "title": "曲目二谱面", "desc": "IN 难度" }
-      ]
-    },
-    {
-      "name": "音乐素材",
-      "path": "local/music",
-      "files": ["demo.ogg", "bgm.mp3"]
-    }
-  ]
-}</pre>
-            <ul>
-              <li><code>name</code>：分类名称（会作为分组标题显示）。</li>
-              <li><code>path</code>：该分类文件夹相对路径。</li>
-              <li><code>files</code>：文件名数组，或包含 <code>name/title/desc</code> 的对象数组。</li>
-              <li>图片类型会自动显示缩略图，点击可放大预览。</li>
-              <li>无需修改任何代码，保存文件后点击上方「重新加载」即可。</li>
-            </ul>
-            <p>若不想使用本地资源，删除该文件或留空路径即可，界面会自动隐藏相关入口。</p>
-          </div>
-        </details>
-      </div>
-
       <div class="stab-panel" data-panel="cache">
         <p class="modal-sub" style="margin-bottom:12px">
           已缓存的内容会保存到浏览器本地（IndexedDB），下次打开无需重新下载。
@@ -1809,6 +1756,13 @@ body.playing .toast{bottom:calc(var(--mini-h) + 24px + var(--safe-bottom))}
           <h3 style="font-size:calc(15px * var(--fs));margin:0 0 8px">友情链接</h3>
           <p style="font-size:calc(13px * var(--fs));line-height:1.85;margin:0 0 12px">
             <a href="https://lilith.xtower.site/" target="_blank" rel="noopener noreferrer">Phigros Query - 不专业的成绩查询与数据分析</a>
+          </p>
+        </div>
+        <div class="set-block">
+          <h3 style="font-size:calc(15px * var(--fs));margin:0 0 8px">本地资源</h3>
+          <p style="font-size:calc(13px * var(--fs));line-height:1.85;color:var(--sub);margin:0 0 12px">
+            在网页同级目录放置 <code>index.json</code>，即可把网站目录下的文件夹作为资源分类展示。
+            详见 <code>index.json</code> 中的 <code>folders</code> 字段说明。
           </p>
         </div>
         <div class="set-block">
@@ -1990,7 +1944,7 @@ const SET_DEFAULTS = {
   threadsToken: 8,
   threadsManual: 8,
   historyMax: 0,
-  localManifest: 'local/index.json'
+  localManifest: 'index.json'   // 默认从网站根目录读取
 };
 
 function lsGetSafe(key, def){
@@ -2001,7 +1955,10 @@ function lsGetSafe(key, def){
 }
 
 let SET = Object.assign({}, SET_DEFAULTS, lsGetSafe('phigros_settings', {}));
-if (!SET.localManifest) SET.localManifest = SET_DEFAULTS.localManifest;
+// 兼容旧版默认值：旧版本默认在 local/index.json
+if (!SET.localManifest || SET.localManifest === 'local/index.json'){
+  SET.localManifest = SET_DEFAULTS.localManifest;
+}
 
 function saveSettings(){
   try{ localStorage.setItem('phigros_settings', JSON.stringify(SET)); }catch(e){}
@@ -2498,7 +2455,7 @@ let unifiedItems = [];
 let rendered = 0;
 let currentPage = 1;
 
-/* 本地资源（网站目录下的文件夹分类） */
+/* 本地资源（网站根目录 index.json 定义的文件夹分类） */
 let localFolders = [];
 let localFiles = [];
 
@@ -2571,7 +2528,7 @@ const miniVol = $('miniVol');
 const miniMute = $('miniMute');
 
 /* =========================================================================
-   本地资源（网站目录文件夹分类）
+   本地资源（网站根目录 index.json）
    ========================================================================= */
 async function loadLocalResources(){
   const path = SET.localManifest || SET_DEFAULTS.localManifest;
@@ -2584,7 +2541,8 @@ async function loadLocalResources(){
     if (!r.ok) throw new Error('HTTP ' + r.status);
     data = await r.json();
   }catch(e){
-    updateLocalStatus(false, '未找到清单文件（' + path + '）');
+    // 没有 index.json 时静默跳过，不影响主流程
+    console.info('[Phigros] 未找到本地资源清单 ' + path + '，跳过。');
     return false;
   }
 
@@ -2633,34 +2591,10 @@ async function loadLocalResources(){
   const chip = $('localChip');
   if (chip) chip.style.display = localFiles.length ? '' : 'none';
 
-  updateLocalStatus(localFiles.length > 0,
-    localFiles.length
-      ? `已加载 ${localFolders.length} 个分类 · ${localFiles.length} 个文件`
-      : '清单中未包含任何文件');
-
-  return localFiles.length > 0;
-}
-
-function updateLocalStatus(ok, text){
-  const el = $('localStatus');
-  if (!el) return;
-  el.textContent = text || (ok ? '已加载' : '未加载');
-  el.style.color = ok ? 'var(--ok)' : 'var(--sub)';
-}
-
-async function reloadLocalResources(){
-  toast('正在加载本地资源清单…');
-  const ok = await loadLocalResources();
-  if (ok){
-    if (!activeContent.has('local')) activeContent.add('local');
-    const chip = $('localChip');
-    if (chip) chip.classList.add('active');
-    applySearch(currentQuery);
-    toast(`本地资源已加载：${localFolders.length} 个分类 / ${localFiles.length} 个文件`);
-  } else {
-    applySearch(currentQuery);
-    toast('未找到本地资源清单（' + (SET.localManifest || SET_DEFAULTS.localManifest) + '）');
+  if (localFiles.length){
+    console.info(`[Phigros] 已加载本地资源：${localFolders.length} 个分类 / ${localFiles.length} 个文件`);
   }
+  return localFiles.length > 0;
 }
 
 async function downloadLocalFile(e, btn){
@@ -2673,6 +2607,7 @@ async function downloadLocalFile(e, btn){
     saveBlob(blob, e.fileName);
     toast('已下载 ' + e.fileName);
   }catch(err){
+    // 回退：直接触发浏览器下载
     try{
       const a = document.createElement('a');
       a.href = e.rel;
@@ -5539,17 +5474,7 @@ $('settingsTabs').addEventListener('click', e => {
   if (name === 'cache') refreshCacheModal();
   if (name === 'proxy') renderProxyPanel();
   if (name === 'token') syncTokenUI();
-  if (name === 'local') syncLocalUI();
 });
-
-function syncLocalUI(){
-  const inp = $('setLocalManifest');
-  if (inp) inp.value = SET.localManifest || SET_DEFAULTS.localManifest;
-  updateLocalStatus(localFiles.length > 0,
-    localFiles.length
-      ? `已加载 ${localFolders.length} 个分类 · ${localFiles.length} 个文件`
-      : '未加载（未找到清单文件或清单为空）');
-}
 
 function syncSettingsUI(){
   $('setSort').value = SET.sort;
@@ -5583,7 +5508,6 @@ function syncSettingsUI(){
   $('setThreadsManual').value = SET.threadsManual;
   $('curThreads').textContent = getThreads();
 
-  syncLocalUI();
   syncTokenUI();
 }
 function syncTokenUI(){
@@ -5611,15 +5535,6 @@ $('setHistoryMax').addEventListener('change', e => {
     lsSet('phigros_history', searchHistory);
   }
 });
-
-/* 本地资源设置 */
-$('setLocalManifest').addEventListener('change', e => {
-  SET.localManifest = e.target.value.trim() || SET_DEFAULTS.localManifest;
-  e.target.value = SET.localManifest;
-  saveSettings();
-  reloadLocalResources();
-});
-$('localReload').addEventListener('click', reloadLocalResources);
 
 function applyFontScale(){
   document.documentElement.style.setProperty('--fs', SET.fontScale);
@@ -6009,7 +5924,7 @@ setInterval(() => { if (gCurrentIdx >= 0) syncURL(); }, 5000);
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   await new Promise(r => setTimeout(r, 30));
 
-  // 本地资源与主索引并行加载
+  // 本地资源与主索引并行加载（根目录 index.json，可选）
   const localPromise = loadLocalResources().catch(() => false);
 
   try{
