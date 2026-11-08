@@ -611,6 +611,8 @@ body.batch-mode .batch-bar{display:flex}
 }
 .batch-cb:has(input:checked){background:var(--brand);border-color:var(--brand)}
 .batch-cb:has(input:checked) input{accent-color:#fff}
+body:not(.batch-mode) .batch-cb{display:none}
+body:not(.batch-mode) .dl-options{display:none}
 
 .fav-btn{
   -webkit-appearance:none;appearance:none;
@@ -649,7 +651,11 @@ body.batch-mode .batch-bar{display:flex}
   border-radius:var(--r-m);overflow:hidden;background:var(--surface-2);
   border:1px solid var(--line);
 }
-.cover-img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;cursor:zoom-in}
+.cover-img{
+  width:100%;height:auto;max-height:430px;
+  object-fit:contain;display:block;cursor:zoom-in;
+  background:var(--surface-2);
+}
 .cover-lv-row{position:absolute;top:10px;left:10px;z-index:2;display:flex;gap:4px}
 .cover-lv{
   -webkit-appearance:none;appearance:none;
@@ -673,6 +679,14 @@ body.batch-mode .batch-bar{display:flex}
 .dl-btn:hover{background:var(--brand);border-color:var(--brand);color:#fff;transform:translateY(-1px)}
 .dl-btn.ghost{background:transparent;border-color:var(--line-2);color:var(--ink)}
 .dl-btn.ghost:hover{border-color:var(--ink);background:var(--surface-2);color:var(--ink)}
+.cover-actions .dl-btn,
+.cover-actions .dl-btn.ghost{
+  background:var(--surface);border-color:var(--line-2);color:var(--ink);
+}
+.cover-actions .dl-btn:hover,
+.cover-actions .dl-btn.ghost:hover{
+  background:var(--ink);border-color:var(--ink);color:var(--paper);transform:translateY(-1px);
+}
 
 .info-rows{display:flex;flex-direction:column;gap:9px}
 .row{display:flex;gap:12px;align-items:baseline;font-size:12.5px}
@@ -748,10 +762,17 @@ body.batch-mode .batch-bar{display:flex}
   background:var(--brand);transition:width .15s linear;
 }
 .seek-preview{
-  position:absolute;top:0;bottom:0;left:0;width:0;
-  background:color-mix(in srgb,var(--brand) 18%,transparent);
-  pointer-events:none;
+  position:absolute;left:0;bottom:calc(100% + 7px);top:auto;
+  width:max-content;height:auto;padding:3px 7px;border-radius:6px;
+  background:var(--ink);color:var(--paper);
+  font-family:var(--mono);font-size:10px;line-height:1.35;white-space:nowrap;
+  transform:translateX(-50%);
+  box-shadow:var(--shadow-m);
+  pointer-events:none;display:none;z-index:4;
 }
+.progress-bar.dragging .seek-preview,
+.mini-progress.dragging .seek-preview{display:block}
+.mini-progress .seek-preview{bottom:calc(100% + 4px)}
 .ptime{
   font-family:var(--mono);font-size:10.5px;color:var(--ink-3);
   white-space:nowrap;
@@ -863,6 +884,15 @@ body.batch-mode .batch-bar{display:flex}
 .state-title{font-size:17px;font-weight:700;margin:0}
 .state-desc{margin:0;max-width:46ch;font-size:13px;color:var(--ink-3);line-height:1.7}
 .state-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.state-actions button{
+  -webkit-appearance:none;appearance:none;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--ink);
+  padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;
+  transition:background-color .2s,border-color .2s,color .2s,transform .2s;
+}
+.state-actions button:hover{background:var(--surface-2);border-color:var(--ink);transform:translateY(-1px)}
+.state-actions button.primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.state-actions button.primary:hover{background:var(--brand);border-color:var(--brand);color:#fff}
 .state-detail{
   font-family:var(--mono);font-size:10.5px;color:var(--ink-3);
   margin-top:6px;max-width:60ch;overflow-wrap:anywhere;
@@ -922,7 +952,8 @@ body.batch-mode .batch-bar{display:flex}
 .dock-btn.active .badge{background:var(--brand-2)}
 
 /* 动态图标 */
-.ic-pause,.ic-play,.ic-sun,.ic-mode-shuffle,.ic-mode-one,.ic-muted{display:none}
+.ic-pause,.ic-play,.ic-sun,.ic-muted,
+.ic-mode-list,.ic-mode-shuffle,.ic-mode-one,.ic-mode-once{display:none}
 #fetchAllBtn .ic-pause,#fetchAllBtn .ic-play{display:none}
 #fetchAllBtn[data-state="run"] .ic-cloud{display:none}
 #fetchAllBtn[data-state="run"] .ic-pause{display:block}
@@ -931,10 +962,10 @@ body.batch-mode .batch-bar{display:flex}
 #themeBtn .ic-sun{display:none}
 html[data-theme="dark"] #themeBtn .ic-moon{display:none}
 html[data-theme="dark"] #themeBtn .ic-sun{display:block}
-#miniMode[data-mode="shuffle"] .ic-mode-loop{display:none}
-#miniMode[data-mode="shuffle"] .ic-mode-shuffle{display:block}
-#miniMode[data-mode="single"] .ic-mode-loop{display:none}
+#miniMode[data-mode="list"] .ic-mode-list{display:block}
 #miniMode[data-mode="single"] .ic-mode-one{display:block}
+#miniMode[data-mode="random"] .ic-mode-shuffle{display:block}
+#miniMode[data-mode="none"] .ic-mode-once{display:block}
 #miniMute[data-muted="1"] .ic-vol{display:none}
 #miniMute[data-muted="1"] .ic-muted{display:block}
 #miniPlay .ic-pause{display:none}
@@ -988,7 +1019,6 @@ html[data-theme="dark"] #themeBtn .ic-sun{display:block}
 }
 .mini-progress::before{content:'';position:absolute;left:0;right:0;height:3px;border-radius:999px;background:var(--line)}
 .mini-progress .progress-fill{height:3px}
-.mini-progress .seek-preview{height:3px}
 .mini-time{font-family:var(--mono);font-size:10px;color:var(--ink-3);flex:0 0 auto}
 .mini-vol{width:62px;accent-color:var(--brand);height:4px;flex:0 0 auto}
 .mini-close{
@@ -1365,21 +1395,29 @@ html[data-theme="dark"] #themeBtn .ic-sun{display:block}
   .mini-player{
     bottom:calc(70px + var(--safe-b));
     width:calc(100% - 20px);
-    padding:8px 10px;gap:8px;
+    padding:8px 10px 7px;
+    column-gap:8px;row-gap:5px;
+    display:grid;
+    grid-template-columns:40px minmax(0,1fr) auto auto;
+    grid-template-areas:"cover info ctrl close" "mute prog prog time";
+    align-items:center;
     border-radius:16px;
   }
-  .mini-cover{width:42px;height:42px;border-radius:10px}
-  .mini-info{flex:1 1 90px}
+  .mini-cover{grid-area:cover;width:40px;height:40px;border-radius:10px;margin:0}
+  .mini-info{grid-area:info;min-width:0}
   .mini-name{font-size:12px}
   .mini-artist{font-size:10.5px}
-  .mini-vol,.mini-time{display:none}
-  .mini-progress{flex:1 1 70px;min-width:50px}
-  .mini-btn{width:30px;height:30px}
-  .mini-btn.play{width:36px;height:36px}
-  .mini-progress{order:9;flex-basis:100%}
+  .mini-controls{grid-area:ctrl;gap:0;justify-self:end;margin:0}
+  .mini-close{grid-area:close;width:26px;height:26px;margin:0}
+  #miniMute{grid-area:mute;width:28px;height:28px}
+  .mini-progress{grid-area:prog;width:100%;height:22px}
+  .mini-time{grid-area:time;justify-self:end;display:block;font-size:9px;color:var(--ink-3)}
+  .mini-vol{display:none}
+  .mini-btn{width:28px;height:28px}
+  .mini-btn.play{width:34px;height:34px}
 
-  .toast{bottom:calc(140px + var(--safe-b))}
-  #toTop{left:14px;bottom:calc(84px + var(--safe-b))}
+  .toast{bottom:calc(196px + var(--safe-b))}
+  #toTop{left:14px;bottom:calc(186px + var(--safe-b))}
 
   .modal{padding:0;align-items:flex-end}
   .modal-card{
@@ -1456,6 +1494,7 @@ html[data-theme="dark"] #themeBtn .ic-sun{display:block}
   <symbol id="i-next" viewBox="0 0 24 24"><path d="M6.4 6.4v11.2l8.2-5.6-8.2-5.6z" fill="currentColor"/><rect x="16.2" y="6.4" width="2.2" height="11.2" rx="1" fill="currentColor"/></symbol>
   <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M6.5 8.5h9.8a3 3 0 0 1 3 3v1.6M17.5 15.5H7.7a3 3 0 0 1-3-3v-1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.9 5.9l2.6 2.6-2.6 2.6M10.1 18.1L7.5 15.5l2.6-2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
   <symbol id="i-repeat-one" viewBox="0 0 24 24"><path d="M6.5 8.5h9.8a3 3 0 0 1 3 3v1.6M17.5 15.5H7.7a3 3 0 0 1-3-3v-1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.9 5.9l2.6 2.6-2.6 2.6M10.1 18.1L7.5 15.5l2.6-2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M11.4 10.6l1.4-.9v4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-play-once" viewBox="0 0 24 24"><path d="M8 6.6l7 5.4-7 5.4V6.6z" fill="currentColor"/><path d="M18 6.2v11.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.6h3.2L12 6v12l-4.8-3.6H4V9.6z" fill="currentColor"/><path d="M15.2 9a4.3 4.3 0 0 1 0 6M17.8 6.8a7.4 7.4 0 0 1 0 10.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
   <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.6h3.2L12 6v12l-4.8-3.6H4V9.6z" fill="currentColor"/><path d="M15.6 9.6l4.4 4.8M20 9.6l-4.4 4.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M7 9.6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
@@ -1709,7 +1748,7 @@ html[data-theme="dark"] #themeBtn .ic-sun{display:block}
     <button class="mini-btn" id="miniPrev" title="上一首" aria-label="上一首"><svg class="ic" aria-hidden="true"><use href="#i-prev"/></svg></button>
     <button class="mini-btn play" id="miniPlay" title="播放/暂停" aria-label="播放" data-playing="0"><svg class="ic ic-play" aria-hidden="true"><use href="#i-play"/></svg><svg class="ic ic-pause" aria-hidden="true"><use href="#i-pause"/></svg></button>
     <button class="mini-btn" id="miniNext" title="下一首" aria-label="下一首"><svg class="ic" aria-hidden="true"><use href="#i-next"/></svg></button>
-    <button class="mini-btn" id="miniMode" title="播放模式" aria-label="播放模式" data-mode="loop"><svg class="ic ic-mode-loop" aria-hidden="true"><use href="#i-repeat"/></svg><svg class="ic ic-mode-shuffle" aria-hidden="true"><use href="#i-shuffle"/></svg><svg class="ic ic-mode-one" aria-hidden="true"><use href="#i-repeat-one"/></svg></button>
+    <button class="mini-btn" id="miniMode" title="播放模式：列表循环" aria-label="播放模式" data-mode="list"><svg class="ic ic-mode-list" aria-hidden="true"><use href="#i-repeat"/></svg><svg class="ic ic-mode-shuffle" aria-hidden="true"><use href="#i-shuffle"/></svg><svg class="ic ic-mode-one" aria-hidden="true"><use href="#i-repeat-one"/></svg><svg class="ic ic-mode-once" aria-hidden="true"><use href="#i-play-once"/></svg></button>
   </div>
   <div class="mini-progress" id="miniProgress" data-act="seek">
     <div class="progress-fill" id="miniFill"></div>
@@ -2895,7 +2934,7 @@ async function cacheImageBackground(relPath){
   }catch(e){ return null; }
 }
 async function hydrateImages(container){
-  const imgs = [...container.querySelectorAll('img[data-cache-path]:not([data-hydrated])')];
+  const imgs = [...container.querySelectorAll('img[data-cache-path]:not([data-hydrated]):not(.cover-img)')];
   if (!imgs.length) return;
   imgs.forEach(img => img.dataset.hydrated = '1');
   await Promise.all(imgs.map(async img => {
@@ -3464,6 +3503,18 @@ function buildUnifiedItems(){
   return items;
 }
 
+function isFavoritedItem(item){
+  switch(item.type){
+    case 'song': return favorites.has(songs[item.idx].id);
+    case 'xfile': return favFiles.has(item.file.path);
+    case 'collection': return favCollections.has(item.data.key);
+    case 'avatar': return favAvatars.has(item.data.name);
+    case 'tip': return favTips.has(item.data);
+    case 'local': return favLocals.has(item.entry.id);
+    default: return false;
+  }
+}
+
 function getGroupInfo(item){
   switch(item.type){
     case 'song': return { key: 'song', label: '歌曲' };
@@ -3545,6 +3596,7 @@ function applySearch(q){
   filteredIdx = arr.map(o => o.i);
 
   unifiedItems = buildUnifiedItems();
+  if (onlyFav) unifiedItems = unifiedItems.filter(isFavoritedItem);
 
   rendered = 0;
   currentPage = 1;
@@ -3554,7 +3606,7 @@ function applySearch(q){
   if (!unifiedItems.length){
     sentinel.style.display = 'none';
     pager.style.display = 'none';
-    grid.innerHTML = emptyStateHTML(q);
+    grid.innerHTML = onlyFav ? favoriteEmptyHTML() : emptyStateHTML(q);
     updateStats(q);
     rebuildQueue();
     syncURL();
@@ -3639,6 +3691,17 @@ function skeletonHTML(n = 6){
     </div>`;
   }
   return html;
+}
+
+function favoriteEmptyHTML(){
+  return `<div class="state-panel fav-empty">
+    <div class="state-art" aria-hidden="true">♡</div>
+    <h3 class="state-title">还没有任何收藏</h3>
+    <p class="state-desc">在歌曲卡片右上角点 <b>♡</b>，或在文件、头像、收藏品与 Tips 上点收藏，之后都会出现在这里。</p>
+    <div class="state-actions">
+      <button class="primary" data-empty-act="showall">浏览全部资源</button>
+    </div>
+  </div>`;
 }
 
 function emptyStateHTML(q){
@@ -3805,7 +3868,7 @@ function cardHTML(s, idx){
         <div class="cover-box" data-lv="${defLevel || ''}">
           ${coverLvRow}
           <img class="cover-img" loading="lazy" decoding="async" alt="${esc(s.name)} 曲绘"
-               src="${lowSrc}" data-fb="${fb}" data-cache-path="${esc(lowPath)}"
+               src="${hiSrc}" data-fb="${fb}" data-cache-path="${esc(hiPath)}"
                data-act="zoom" data-big="${hiSrc}" data-name="${esc(s.name)}${defaultLvLabel}"
                data-cache-path-big="${esc(hiPath)}">
           <div class="cover-actions">
@@ -4316,6 +4379,12 @@ function openCard(cardEl, idx){
   if (head) head.setAttribute('aria-expanded', String(!wasOpen));
 
   if (!wasOpen){
+    const cover = cardEl.querySelector('.cover-img');
+    if (cover && cover.dataset.cachePath){
+      getCachedImageURL(cover.dataset.cachePath)
+        .then(u => { if (u) cover.src = u; })
+        .catch(() => {});
+    }
     if (batchMode){
       const s = songs[idx];
       if (s && !batchSelection.has('song:' + s.id)) ensureSongSelection(s);
@@ -4365,6 +4434,10 @@ grid.addEventListener('click', async (e) => {
       switchSettingsTab('proxy');
     } else if (act === 'settings'){
       openSettings();
+    } else if (act === 'showall'){
+      onlyFav = false;
+      favBtn.classList.remove('active');
+      applySearch(currentQuery);
     }
     return;
   }
@@ -4515,19 +4588,17 @@ grid.addEventListener('click', async (e) => {
       box.querySelectorAll('.cover-lv').forEach(b => b.classList.toggle('active', b === btn));
       box.dataset.lv = lv;
       const img = box.querySelector('.cover-img');
-      const lowRel = coverPath(s.id, 'illustLow', lv);
       const hiRel  = coverPath(s.id, 'illust',    lv);
       const fbRel  = coverPath(s.id, 'illustLow', lv);
-      const lowSrc = assetUrl(lowRel);
       const hiSrc  = assetUrl(hiRel);
       const fbSrc  = assetUrl(fbRel);
-      const cachedLow = await getCachedImageURL(lowRel);
+      const cachedHi = await getCachedImageURL(hiRel);
       img.style.opacity = '0.35';
       const finish = () => { img.style.opacity = '1'; };
       img.onload = finish;
       setTimeout(finish, 400);
-      img.src = cachedLow || lowSrc;
-      img.dataset.cachePath = lowRel;
+      img.src = cachedHi || hiSrc;
+      img.dataset.cachePath = hiRel;
       img.dataset.cachePathBig = hiRel;
       img.dataset.big = hiSrc;
       img.dataset.fb = fbSrc;
@@ -4586,6 +4657,17 @@ grid.addEventListener('click', async (e) => {
     e.stopPropagation();
     const q = searchEl.dataset.q;
     if (q && q !== '—'){
+      // 字段搜索始终面向全部曲目：退出收藏限定、放开难度筛选，并确保歌曲在结果中
+      if (onlyFav){ onlyFav = false; favBtn.classList.remove('active'); }
+      if (!activeContent.has('song')){
+        activeContent.add('song');
+        const songChip = document.querySelector('.chip-filter[data-content="song"]');
+        if (songChip) songChip.classList.add('active');
+      }
+      if (activeDiffs.size !== LEVELS.length){
+        activeDiffs = new Set(LEVELS);
+        document.querySelectorAll('.chip-filter[data-diff]').forEach(b => b.classList.add('active'));
+      }
       searchInput.value = q;
       clearBtn.classList.add('show');
       applySearch(q);
@@ -4685,7 +4767,7 @@ favBtn.addEventListener('click', () => {
   onlyFav = !onlyFav;
   favBtn.classList.toggle('active', onlyFav);
   applySearch(currentQuery);
-  toast(onlyFav ? '仅显示收藏歌曲' : '显示全部');
+  toast(onlyFav ? '仅显示收藏' : '显示全部');
 });
 
 /* =========================================================================
@@ -4958,6 +5040,7 @@ function updateModeBtn(){
   if (!miniMode) return;
   miniMode.dataset.mode = playMode;
   miniMode.title = '播放模式：' + m.label + '（点击切换）';
+  miniMode.setAttribute('aria-label', '播放模式：' + m.label + '，点击切换');
 }
 miniMode.addEventListener('click', () => {
   const idx = PLAY_MODES.findIndex(x => x.id === playMode);
@@ -5193,7 +5276,13 @@ function seekPreview(barEl, pct){
   const f = barEl.querySelector('.progress-fill');
   if (f) f.style.width = (pct * 100) + '%';
   const pv = barEl.querySelector('.seek-preview');
-  if (pv){ pv.textContent = fmtTime(pct * d); pv.style.left = (pct * 100) + '%'; }
+  if (pv){
+    pv.textContent = fmtTime(pct * d);
+    const w = barEl.getBoundingClientRect().width;
+    const pad = Math.min(30, Math.max(16, w * 0.09));
+    const x = Math.max(pad, Math.min(w - pad, pct * w));
+    pv.style.left = x + 'px';
+  }
   if (barEl === miniProgress && miniTime) miniTime.textContent = fmtTime(pct * d) + ' / ' + fmtTime(d);
   const c = cardEl(gCurrentIdx);
   if (c && barEl.closest('.card') === c){
